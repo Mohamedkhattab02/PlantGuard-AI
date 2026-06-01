@@ -49,3 +49,6 @@ desktop.ini
 # ===== Misc build/output =====
 .dist/
 *.log
+
+# ===== Internal docs (kept local, not published) =====
+ROADMAP.md
