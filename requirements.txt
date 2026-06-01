@@ -1,0 +1,35 @@
+# PlantGuard AI — pinned dependencies (ROADMAP [6.2])
+# Install with:  pip install -r requirements.txt
+
+# --- UI ---
+gradio==6.15.2
+
+# --- LLM / embeddings ---
+google-generativeai==0.8.6
+
+# --- Computer vision / ML ---
+transformers==5.9.0
+torch==2.12.0
+pillow==12.2.0
+scikit-learn==1.8.0
+numpy==2.4.4
+huggingface-hub==1.17.0
+
+# --- Data & documents ---
+pandas==3.0.3
+matplotlib==3.10.9
+pypdf==6.12.2
+
+# --- Backend / IO ---
+requests==2.34.2
+firebase-admin==7.4.0
+python-dotenv==1.2.2
+fpdf2==2.8.7
+
+# --- REST API ---
+fastapi==0.136.3
+uvicorn==0.48.0
+pydantic==2.13.4
+
+# --- Dev / test ---
+pytest==9.0.3

@@ -2,16 +2,18 @@
 
 # 🌱 PlantGuard AI
 
-### AI-Powered Plant Disease Research & Monitoring Platform
+### AI-Powered Plant Disease Diagnosis, Research & Field Monitoring
 
-*Computer-vision diagnosis · RAG research assistant · live IoT telemetry · interactive dashboards — in one Gradio app.*
+*Computer-vision diagnosis · semantic RAG research assistant · live IoT telemetry with smart alerts · weather context · gamification — in one elegant app, plus a headless REST API.*
 
 <p>
   <img alt="Python"        src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white">
   <img alt="Gradio"        src="https://img.shields.io/badge/Gradio-6.x-FF7C00?logo=gradio&logoColor=white">
   <img alt="Transformers"  src="https://img.shields.io/badge/🤗%20Transformers-5.x-FFD21E">
   <img alt="Gemini"        src="https://img.shields.io/badge/Google-Gemini%202.5%20Flash-4285F4?logo=google&logoColor=white">
+  <img alt="FastAPI"       src="https://img.shields.io/badge/FastAPI-REST-009688?logo=fastapi&logoColor=white">
   <img alt="Firebase"      src="https://img.shields.io/badge/Firebase-RTDB-FFCA28?logo=firebase&logoColor=black">
+  <img alt="Tests"         src="https://img.shields.io/badge/tests-33%20passing-3fb950">
   <img alt="License"       src="https://img.shields.io/badge/License-MIT-blue">
 </p>
 
@@ -21,169 +23,204 @@
 
 ## 📖 Overview
 
-**PlantGuard AI** is a research-and-monitoring platform that helps growers and researchers
-**detect plant diseases from a photo**, **ask grounded questions over a corpus of scientific
-papers**, and **monitor live field conditions** from IoT sensors — all behind a single,
-themed [Gradio](https://www.gradio.app/) web UI.
-
-The application fuses four AI/data capabilities:
+**PlantGuard AI** helps growers and researchers **detect plant diseases from a photo**,
+**ask grounded questions over a corpus of scientific papers**, and **monitor live field
+conditions** with smart alerts — behind a single, polished web UI **and** a decoupled
+REST API.
 
 | Capability | Engine | What it does |
 |------------|--------|--------------|
-| 🔬 **Image diagnosis** | `MobileNetV2` (38-class, fine-tuned) | Classifies a leaf photo into plant + disease, with a confidence score. |
-| 📚 **RAG research assistant** | Custom retriever + **Gemini 2.5 Flash** | Answers questions grounded **only** in a local library of research PDFs, with citations. |
-| 📡 **IoT telemetry** | Remote REST API + Firebase RTDB | Pulls temperature / humidity / soil readings and renders live dashboards. |
-| 🎮 **Gamification** | In-memory mission engine | Awards points for completing tasks across tabs to drive engagement. |
+| 🔬 **Image diagnosis** | `MobileNetV2` (38-class) | Classifies a leaf photo into plant + disease with a confidence score, top-3, and a low-confidence guard. |
+| 📚 **Semantic RAG** | Gemini **embeddings** + **Gemini 2.5 Flash** | Vector retrieval over a local PDF library; answers grounded in sources with citations. |
+| 🩺 **Diagnosis + treatment** | One structured Gemini call + curated **knowledge base** | Returns explanation, severity, and a dosage-aware treatment plan in a single round-trip. |
+| 📡 **IoT + alerts** | REST backend + Firebase RTDB | Concurrent feed fetch, live dashboards, and agronomic threshold alerts. |
+| 🌦️ **Weather context** | Open-Meteo (no key) | Correlates humidity/rain with fungal-disease risk. |
+| 🗂️ **History & PDF** | Firebase + `fpdf2` | Per-user diagnosis history and one-click PDF reports. |
+| 🎮 **Gamification** | Per-user, persistent | Daily missions and points that persist across restarts. |
 
-> **Origin:** ported from a Google Colab notebook into a self-contained local application,
-> with the LLM swapped to the Gemini API and the model-loading path hardened for
-> `transformers` 5.x.
+> **Origin:** started as a single-file Colab port (`micro_final.py`) and was refactored into
+> a modular, tested, production-grade package. See **[ROADMAP.md](ROADMAP.md)** for the full
+> engineering plan — **every item in it has been implemented**.
 
 ---
 
 ## ✨ Features
 
-- **🔬 Disease Diagnosis** — upload a leaf image → get plant, disease, confidence, a
-  RAG-grounded explanation, and a Gemini-generated treatment plan.
-- **📚 Research Assistant** — natural-language Q&A over your own PDF library; every answer
-  is sourced strictly from the indexed documents and lists its citations.
-- **📊 Sensor Data** — fetch raw `temperature` / `humidity` / `soil` feeds from the IoT
-  backend on demand.
-- **📈 Visual Dashboard** — time-series plots of all sensor feeds, refreshed live.
-- **🎮 Daily Missions** — point-based gamification that rewards using each feature.
-- **🤖 Floating Assistant** — an always-on Gemini chatbot (replies in Hebrew) that explains
-  how to use the platform.
-- **🛡️ Graceful degradation** — if Firebase, the IoT server, or a download is unavailable,
-  the app logs a warning and **keeps running** instead of crashing.
+- **🔬 Disease Diagnosis** — upload **or capture from webcam**; get plant, disease, confidence,
+  **top-3 predictions**, a **low-confidence warning**, a grounded explanation, and a treatment
+  plan. **Batch mode** diagnoses many images at once for field surveys.
+- **📚 Research Assistant** — **semantic** (embedding-based) Q&A over your PDF library, with
+  citations and answer caching.
+- **📊 Sensors & 📈 Dashboard** — fetch raw feeds, or render concurrent live time-series with
+  **aggregated stats** and **threshold alerts** (e.g. *soil low → irrigate*), plus weather.
+- **🗂️ History** — every diagnosis saved per user, with an image gallery and timeline.
+- **📄 PDF Reports** — export any diagnosis (image + disease + treatment) to a branded PDF.
+- **🎮 Daily Missions** — per-user, **persistent** points/levels that auto-reset daily.
+- **🤖 Elegant Floating Assistant** — a redesigned chat widget explaining the platform.
+- **🔌 REST API** — the same engines exposed via **FastAPI** for automations or a future mobile app.
+- **🛡️ Graceful degradation** — missing Firebase / offline sensors / unavailable embeddings all
+  degrade to safe fallbacks instead of crashing.
 
 ---
 
 ## 🏗️ Architecture
 
-The codebase follows a **microservice-style separation of concerns**, organized into six
-logical "cells" within [`micro_final.py`](micro_final.py):
+A clean, microservice-style **package** with a thin UI and API on top. Heavy initialization
+happens once at startup; nothing expensive runs at import time, so the logic is fully testable.
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                          Gradio UI (Cell 6)                        │
-│   🔬 Diagnosis · 📚 Research · 📊 Sensors · 📈 Dashboard · 🎮 Game │
-└───────────────┬───────────────────────────────┬──────────────────┘
-                │                                │
-   ┌────────────▼────────────┐      ┌────────────▼─────────────┐
-   │   Image Pipeline         │      │   RAG System (GeminiRAG)  │
-   │   MobileNetV2 + processor│      │   AcademicSearchEngine    │
-   │   (image-classification) │      │   ├─ DocumentService      │
-   └────────────┬────────────┘      │   ├─ IndexService         │
-                │                    │   ├─ SearchService        │
-   ┌────────────▼────────────┐      │   └─ ResultService        │
-   │   parse_label()          │      │        + TfidfRetriever   │
-   │   rag_explain()          │      └────────────┬─────────────┘
-   │   gemini_treatment()     │                   │
-   └─────────────────────────┘      ┌────────────▼─────────────┐
-                                     │   Gemini 2.5 Flash (LLM)  │
-   ┌──────────────────────────┐     └───────────────────────────┘
-   │   IoT Layer               │
-   │   get_sensor_data()       │──────► REST: {BASE_URL}/history
-   │   plot_all_feeds()        │──────► Firebase RTDB (telemetry)
-   └──────────────────────────┘
+                        ┌─────────────────────────────────────────┐
+                        │   plantguard/app.py   (Gradio UI)         │
+                        │   plantguard/api.py   (FastAPI REST)      │
+                        └───────────────┬───────────────────────────┘
+                                        │  build_services()
+        ┌───────────────────────────────┼───────────────────────────────┐
+        ▼               ▼                ▼                ▼               ▼
+  ┌───────────┐  ┌────────────┐   ┌────────────┐   ┌───────────┐  ┌────────────┐
+  │  image    │  │    rag     │   │    iot     │   │gamification│  │  history   │
+  │ MobileNet │  │ embeddings │   │ retry +    │   │ per-user   │  │ per-user   │
+  │ +labels   │  │ +Gemini    │   │ concurrent │   │ +persist   │  │ +PDF       │
+  │ +top-3    │  │ +KB +cache │   │ +MapReduce │   └───────────┘  └────────────┘
+  └───────────┘  └─────┬──────┘   └─────┬──────┘
+                       │                 │
+                 ┌─────▼─────┐    ┌──────▼──────┐   ┌──────────┐  ┌──────────┐
+                 │ documents │    │   alerts    │   │ weather  │  │  store   │
+                 │ parse-once│    │ thresholds  │   │OpenMeteo │  │ Firebase │
+                 └───────────┘    └─────────────┘   └──────────┘  └──────────┘
+
+  Cross-cutting:  config.py (settings/logging) · http_client.py (retry session) · i18n.py
 ```
 
-**Cell breakdown** (top-to-bottom in the script):
-
-| Cell | Lines | Responsibility |
-|------|-------|----------------|
-| **1 — Imports** | [L32](micro_final.py#L32) | Dependencies + forced UTF-8 console (Windows `cp1252` fix). |
-| **2 — Config & Setup** | [L99](micro_final.py#L99) | Loads `.env`, initializes Firebase, resolves local data folders (Drive fallback). |
-| **3 — Domain Engines** | [L218](micro_final.py#L218) | Gamification, academic search microservices, IoT MapReduce. |
-| **4 — RAG & Models** | [L421](micro_final.py#L421) | Builds the RAG pipeline + loads the image classifier. |
-| **5 — Business Logic** | [L628](micro_final.py#L628) | `diagnose`, `query_handler`, sensor fetch/plot, chatbot. |
-| **6 — UI** | [L801](micro_final.py#L801) | Gradio `Blocks`, tabs, floating chatbot, event wiring. |
+| Module | Responsibility |
+|--------|----------------|
+| [config.py](plantguard/config.py) | Typed settings from env, logging, UTF-8 console |
+| [http_client.py](plantguard/http_client.py) | Shared `requests` session with exponential-backoff retry |
+| [services/store.py](plantguard/services/store.py) | Firebase RTDB wrapper (no insecure key download) |
+| [services/image.py](plantguard/services/image.py) | Classifier, robust label parsing, confidence, validation |
+| [services/rag.py](plantguard/services/rag.py) | Embedding/TF-IDF retrieval, system-instruction, caching, rate limiting |
+| [services/documents.py](plantguard/services/documents.py) | Parse each PDF once into a shared corpus |
+| [services/knowledge_base.py](plantguard/services/knowledge_base.py) | Curated treatment guidance with dosages |
+| [services/iot.py](plantguard/services/iot.py) | History, concurrent fetch, MapReduce aggregates |
+| [services/alerts.py](plantguard/services/alerts.py) | Pure agronomic threshold rules |
+| [services/gamification.py](plantguard/services/gamification.py) | Per-user, persistent missions/points |
+| [services/history.py](plantguard/services/history.py) · [reports.py](plantguard/services/reports.py) · [weather.py](plantguard/services/weather.py) | History, PDF reports, weather context |
 
 ---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-
 - **Python 3.11**
-- A **Google Gemini API key** ([get one here](https://aistudio.google.com/app/apikey))
-- *(Optional)* A **Firebase** service-account JSON for telemetry persistence
+- A **Google Gemini API key** ([get one](https://aistudio.google.com/app/apikey))
+- *(Optional)* a **Firebase** service-account JSON for persistence
 
-### 1. Clone & enter the project
-
+### 1. Clone & enter
 ```powershell
-git clone <https://github.com/Mohamedkhattab02/PlantGuard-AI>
+git clone https://github.com/Mohamedkhattab02/PlantGuard-AI
 cd "PlantGuard AI"
 ```
 
-### 2. Create a virtual environment (recommended)
-
+### 2. Virtual environment (recommended)
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-### 3. Install dependencies
-
+### 3. Install (pinned, reproducible)
 ```powershell
-pip install gradio nltk PyPDF2 transformers torch pillow pypdf scikit-learn `
-            huggingface_hub sentencepiece datasets google-generativeai pandas `
-            matplotlib requests gdown python-dotenv firebase-admin
+pip install -r requirements.txt
 ```
 
 ### 4. Configure secrets
-
-Copy the example env file and fill in your real values:
-
 ```powershell
 Copy-Item .env.example .env
 ```
-
 ```dotenv
-# .env
 GEMINI_API_KEY=your_gemini_api_key_here
 DATABASE_URL=https://your-project-default-rtdb.firebaseio.com/
 FIREBASE_KEY_PATH=firebase-key.json
 BASE_URL=https://your-server.onrender.com/
+# Optional launch controls (default to local/safe):
+# GRADIO_SHARE=false
+# DEBUG=false
 ```
+Place your Firebase key as `firebase-key.json` in the project root **(it is never
+auto-downloaded — provide it yourself)**.
 
-Place your Firebase service-account file as `firebase-key.json` in the project root.
+> 🔒 `.env`, `firebase-key.json`, and `*-key.json` are git-ignored. Only `.env.example` is tracked.
 
-> 🔒 **`.env`, `firebase-key.json`, and all `*-key.json` files are git-ignored** — never
-> commit secrets. Only `.env.example` is tracked.
-
-### 5. Run
-
+### 5. Run the app
 ```powershell
-python micro_final.py
+python micro_final.py        # backward-compatible entry point
+# or:  python -m plantguard.app
 ```
-
-The app launches at **`http://127.0.0.1:7860`** and prints a temporary public
-`share=True` link.
+The UI launches at **`http://127.0.0.1:7860`**. A public link is created only if `GRADIO_SHARE=true`.
 
 ---
 
-## 📂 Data Layout
+## 🔌 REST API (headless)
 
-The app prefers **local data folders** and only falls back to Google Drive if they are empty.
+```powershell
+uvicorn plantguard.api:create_app --factory --port 8000
+```
+
+| Method & path | Purpose |
+|---------------|---------|
+| `GET /health` | Liveness + Firebase status |
+| `POST /diagnose` | Multipart image upload → diagnosis (+ advice if diseased) |
+| `POST /research` | `{ "question": "...", "top_k": 2 }` → grounded answer + sources |
+| `GET /sensors/{feed}?limit=10` | Raw sensor history |
+| `GET /dashboard` | Aggregated stats + alerts |
+
+Interactive docs at `http://127.0.0.1:8000/docs`.
+
+---
+
+## 📂 Project Structure
 
 ```
 PlantGuard AI/
-├── micro_final.py          # The application (single file, 6 cells)
-├── .env                    # Secrets (git-ignored)
-├── .env.example            # Template for .env
-├── firebase-key.json       # Firebase service account (git-ignored)
-├── articles/               # 📚 Research PDFs — indexed for the RAG assistant
-│   ├── 1-s2.0-S2772899424000417-main.pdf
-│   └── ... (5 papers)
-└── IOT_DETAILS/            # 📡 IoT JSON exports (temperature / humidity / soil)
-    └── json-20251229-2107.json
+├── micro_final.py          # Backward-compatible launcher (delegates to the package)
+├── plantguard/             # The application package
+│   ├── config.py · http_client.py · i18n.py
+│   ├── app.py              # Gradio UI
+│   ├── api.py              # FastAPI service
+│   └── services/           # image · rag · documents · knowledge_base · iot ·
+│                           #   alerts · gamification · history · reports · weather · store
+├── tests/                  # pytest suite (pure logic + UI build smoke test)
+├── articles/               # 📚 Research PDFs — indexed for RAG
+├── IOT_DETAILS/            # 📡 IoT JSON exports
+├── requirements.txt        # Pinned dependencies
+├── pyproject.toml          # Packaging + ruff/black + pytest config
+├── ROADMAP.md              # Engineering plan (fully implemented)
+└── LICENSE                 # MIT
 ```
 
-- **`articles/`** — drop in any plant-disease research PDFs; they are chunked and indexed
-  on startup for retrieval.
-- **`IOT_DETAILS/`** — historical sensor exports. Each record's `value` is a JSON string
-  containing `temperature`, `humidity`, and `soil`.
+---
+
+## ⚙️ Configuration
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `GEMINI_API_KEY` | — (required) | Gemini key; the app fails loudly without it |
+| `DATABASE_URL` | demo RTDB | Firebase Realtime DB URL |
+| `FIREBASE_KEY_PATH` | `firebase-key.json` | Service-account key path |
+| `BASE_URL` | demo Render URL | IoT REST backend |
+| `GRADIO_SHARE` | `false` | Create a public tunnel |
+| `DEBUG` | `false` | Verbose logs + Gradio debug |
+| `GRADIO_SERVER_NAME` / `GRADIO_SERVER_PORT` | `127.0.0.1` / `7860` | Bind address |
+
+---
+
+## 🧪 Testing & Quality
+
+```powershell
+pytest          # 33 tests: label parsing, gamification, MapReduce, alerts, i18n, + UI build smoke test
+ruff check .    # lint
+black .         # format
+```
+The UI build smoke test constructs the entire Gradio graph **without** the model, network,
+or API keys — catching component-API regressions in CI.
 
 ---
 
@@ -192,15 +229,14 @@ PlantGuard AI/
 | Component | Identifier / Endpoint |
 |-----------|-----------------------|
 | **Image classifier** | [`linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification`](https://huggingface.co/linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification) |
-| **LLM** | `gemini-2.5-flash` (temperature `0.3`, `top_p 0.8`, 2048 max tokens) |
-| **Retrievers** | Keyword index (RAG Q&A) + TF-IDF + cosine similarity (diagnosis explanations) |
+| **LLM** | `gemini-2.5-flash` (system-instruction, JSON mode for structured advice) |
+| **Embeddings** | `models/text-embedding-004` (cosine retrieval, disk-cached; TF-IDF fallback) |
 | **IoT API** | `GET {BASE_URL}/history?feed=<feed>&limit=<n>` |
-| **Telemetry store** | Firebase Realtime Database |
+| **Weather** | Open-Meteo (geocoding + current conditions, no key) |
 
-> **Label format:** this model emits human-readable labels such as `"Tomato with Late
-> Blight"` or `"Healthy Apple"` — **not** the PlantVillage `Plant___Disease` format. The
-> [`parse_label()`](micro_final.py#L631) function splits on `" with "` and detects the
-> `Healthy` prefix.
+> **Label parsing:** the model emits human-readable labels (`"Tomato with Late Blight"`,
+> `"Healthy Apple"`). [`parse_label`](plantguard/services/image.py) uses a known-plant table +
+> overrides (e.g. `"Cedar Apple Rust"` → *Apple*) instead of a naive first-word heuristic.
 
 ---
 
@@ -208,56 +244,42 @@ PlantGuard AI/
 
 | Layer | Technology |
 |-------|------------|
-| **UI** | Gradio 6.x (`Blocks`, themed, messages-format chatbot) |
-| **Computer Vision** | 🤗 Transformers 5.x · PyTorch · MobileNetV2 |
-| **LLM / Generation** | Google Gemini 2.5 Flash (`google-generativeai`) |
-| **Retrieval** | scikit-learn (TF-IDF), custom keyword index, NLTK |
-| **Document parsing** | PyPDF2 / pypdf |
-| **Data / Plotting** | pandas · matplotlib (`Agg` backend) |
-| **Backend / Telemetry** | Firebase Admin SDK · `requests` (REST) |
-| **Config** | `python-dotenv` |
+| **UI** | Gradio 6.x (custom theme + CSS, redesigned chat widget) |
+| **API** | FastAPI · Uvicorn · Pydantic |
+| **Vision** | 🤗 Transformers 5.x · PyTorch · MobileNetV2 |
+| **LLM / RAG** | Google Gemini 2.5 Flash · Gemini embeddings · scikit-learn (TF-IDF fallback) · NumPy |
+| **Docs / Data** | pypdf · pandas · matplotlib · fpdf2 |
+| **Backend** | Firebase Admin · `requests` (retry session) |
+| **Tooling** | pytest · ruff · black · python-dotenv |
 
 ---
 
 ## ⚠️ Compatibility Notes
 
-This project runs on **modern, breaking-change-prone** library versions. Key adaptations
-already baked in:
-
-- **`transformers` 5.x dropped `text2text-generation`** → the local FLAN-T5 LLM was
-  replaced with a `gemini_generate()` helper.
-- **`transformers` 5.x can't auto-detect the image processor** (the model's
-  `preprocessor_config.json` lacks `image_processor_type`) → the pipeline is built with an
-  explicit `AutoModelForImageClassification` + `AutoImageProcessor`.
-- **Gradio 6.x removed `gr.Chatbot(type=...)`** → uses the default messages format
-  (`{"role", "content"}` dicts).
-- **Windows console is `cp1252`** → `sys.stdout/stderr.reconfigure(encoding="utf-8")` is
-  forced at startup so emoji never raise `UnicodeEncodeError`.
+- **`transformers` 5.x dropped `text2text-generation`** → local FLAN-T5 replaced by Gemini.
+- **`transformers` 5.x can't auto-detect the image processor** → explicit
+  `AutoModelForImageClassification` + `AutoImageProcessor`.
+- **Gradio 6 moved `theme`/`css`** from `Blocks(...)` to `launch()` — applied accordingly.
+- **Gradio 6 chatbot** uses the messages format (`{"role","content"}`) by default.
+- **Windows console is `cp1252`** → UTF-8 is forced at startup so emoji never crash logging.
 
 ---
 
-## 🗺️ Usage Guide
+## 🗺️ Roadmap Status
 
-| Tab | How to use it |
-|-----|---------------|
-| 🔬 **Disease Diagnosis** | Upload a leaf photo → **Analyze** → read the diagnosis, confidence, explanation & treatment. |
-| 📚 **Research Assistant** | Type a question, pick how many docs to retrieve → **Search**. Answers cite their sources. |
-| 📊 **Sensor Data** | Choose a feed and sample count → **Fetch** raw readings. |
-| 📈 **Dashboard** | Set the number of points → **Refresh** to render live time-series plots. |
-| 🎮 **Daily Missions** | Complete tasks across tabs to earn points; **Reset** to start a new day. |
-| 💬 **Floating Assistant** | Click the bubble (bottom-right) for help in Hebrew. |
+All **[ROADMAP.md](ROADMAP.md)** items are implemented. Pragmatic scoping notes:
+- **User accounts** use lightweight username-based persistence (per-user history/progress) rather
+  than full OAuth.
+- **Sensor alerting** ships the rule engine + in-app alerts; email/Telegram push is left as a hook.
+- **Bilingual UI** was intentionally consolidated to **English-only** per product decision.
 
 ---
 
-## 🤝 Contributing
+## 📜 License
 
-1. Fork the repo and create a feature branch (`git checkout -b feature/my-feature`).
-2. Keep the **six-cell structure** and the microservice separation intact.
-3. Ensure the app still launches cleanly (`python micro_final.py`) before opening a PR.
-4. **Never** commit `.env`, `firebase-key.json`, or any credential file.
+Released under the **MIT License** — see [LICENSE](LICENSE).
 
 ---
-
 
 <div align="center">
 
