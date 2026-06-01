@@ -1,0 +1,51 @@
+# ===== Secrets / credentials (NEVER commit) =====
+.env
+.env.*
+!.env.example
+firebase-key.json
+*firebase*adminsdk*.json
+*-key.json
+*.pem
+*.credentials.json
+serviceAccount*.json
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.virtualenv/
+
+# ===== Caches / model downloads =====
+.cache/
+.huggingface/
+*.ckpt
+*.safetensors
+*.bin
+*.pt
+*.pth
+
+# ===== Editors / OS =====
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== Claude Code local settings =====
+.claude/settings.local.json
+
+# ===== Misc build/output =====
+.dist/
+*.log
