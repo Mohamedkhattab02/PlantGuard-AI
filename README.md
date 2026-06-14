@@ -283,6 +283,6 @@ Released under the **MIT License** — see [LICENSE](LICENSE).
 
 <div align="center">
 
-**Built with 🌱 for healthier crops.**
+***Built with 🌱 for healthier crops.***
 
-</div>
+</div>  
